@@ -1,0 +1,72 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Primitives
+    function isSignedIn() { return request.auth != null; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+
+    function isValidUser(data) {
+       return data.keys().hasAll(['uid', 'userName', 'xp', 'level', 'streak', 'isPremium', 'wisdomShards', 'prestigePoints']) &&
+              data.keys().size() == 8 &&
+              data.uid is string &&
+              data.userName is string && data.userName.size() <= 100 &&
+              data.xp is number && data.level is number && data.streak is number &&
+              data.isPremium is bool && data.wisdomShards is number && data.prestigePoints is number &&
+              data.uid == request.auth.uid;
+    }
+
+    match /users/{userId} {
+      allow read: if isSignedIn() && isValidId(userId);
+      allow create: if isSignedIn() && isValidId(userId) && userId == request.auth.uid && isValidUser(incoming());
+      allow update: if isSignedIn() && isValidId(userId) && userId == request.auth.uid && 
+                    (
+                       incoming().diff(existing()).affectedKeys().hasOnly(['userName', 'xp', 'level', 'streak', 'isPremium', 'wisdomShards', 'prestigePoints']) &&
+                       incoming().uid == existing().uid &&
+                       incoming().userName is string && incoming().userName.size() <= 100 &&
+                       incoming().xp is number && incoming().level is number && incoming().streak is number &&
+                       incoming().isPremium is bool && incoming().wisdomShards is number && incoming().prestigePoints is number
+                    );
+    }
+    
+    function isValidLibrary(data) {
+       return data.keys().hasAll(['ownerId', 'name', 'theme', 'lat', 'lng', 'isPublic', 'conqueredCount']) &&
+              data.ownerId is string &&
+              data.name is string && data.name.size() <= 200 &&
+              data.theme is string && data.theme.size() <= 200 &&
+              data.lat is number && data.lng is number &&
+              data.isPublic is bool && data.conqueredCount is number;
+    }
+
+    match /libraries/{libraryId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(libraryId) && isValidLibrary(incoming()) && incoming().ownerId == request.auth.uid;
+      allow update: if isSignedIn() && isValidId(libraryId) &&
+                    (
+                       // Owner updates
+                       (existing().ownerId == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'theme', 'isPublic', 'coatOfArms', 'conqueredCount'])) ||
+                       // Anyone can conquer
+                       (incoming().diff(existing()).affectedKeys().hasOnly(['conqueredCount']) && incoming().conqueredCount == existing().conqueredCount + 1)
+                    );
+    }
+
+    function isValidQuiz(data) {
+       return data.keys().hasAll(['userId', 'libraryId', 'score', 'completedAt']) &&
+              data.userId is string && data.libraryId is string &&
+              data.score is number && data.completedAt is string;
+    }
+
+    match /libraries/{libraryId}/quizzes/{quizId} {
+       allow read: if isSignedIn();
+       allow create: if isSignedIn() && isValidId(libraryId) && isValidId(quizId) &&
+                     isValidQuiz(incoming()) && incoming().userId == request.auth.uid &&
+                     exists(/databases/$(database)/documents/libraries/$(libraryId));
+    }
+  }
+}

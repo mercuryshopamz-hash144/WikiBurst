@@ -1,0 +1,63 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile and state",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "userName": { "type": "string" },
+        "xp": { "type": "number" },
+        "level": { "type": "number" },
+        "streak": { "type": "number" },
+        "isPremium": { "type": "boolean" },
+        "wisdomShards": { "type": "number" },
+        "prestigePoints": { "type": "number" }
+      },
+      "required": ["uid", "userName", "xp", "level", "streak", "isPremium", "wisdomShards", "prestigePoints"]
+    },
+    "Library": {
+      "title": "Library",
+      "description": "A player-created or system library",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string" },
+        "name": { "type": "string" },
+        "theme": { "type": "string" },
+        "lat": { "type": "number" },
+        "lng": { "type": "number" },
+        "cityId": { "type": "string" },
+        "coatOfArms": { "type": "string" },
+        "isPublic": { "type": "boolean" },
+        "conqueredCount": { "type": "number" }
+      },
+      "required": ["ownerId", "name", "theme", "lat", "lng", "isPublic", "conqueredCount"]
+    },
+    "QuizRecord": {
+       "title": "Quiz Record",
+       "description": "Record of a completed quiz",
+       "type": "object",
+       "properties": {
+          "userId": { "type": "string" },
+          "libraryId": { "type": "string" },
+          "score": { "type": "number" },
+          "completedAt": { "type": "string" }
+       },
+       "required": ["userId", "libraryId", "score", "completedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profiles"
+    },
+    "/libraries/{libraryId}": {
+      "schema": { "$ref": "#/entities/Library" },
+      "description": "Global libraries"
+    },
+    "/libraries/{libraryId}/quizzes/{quizId}": {
+      "schema": { "$ref": "#/entities/QuizRecord" },
+      "description": "Quiz completion records for a library"
+    }
+  }
+}
